@@ -1,75 +1,138 @@
-// components/CreatePost.tsx
-'use client' // Essential: This makes the component interactive
+'use client' 
 // 1. DIRECTIVE: This tells Next.js "Send the JavaScript for this file to the browser."
-// Without this, hooks like useState or onClick events will crash the app because 
-// Next.js tries to render everything on the server by default.
+// Essential for useState, useEffect, and onClick events.
 
-import { useState } from 'react'
+// [NEW] Added 'useEffect' to the import list.
+import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 
 export default function CreatePost() {
   // 2. STATE MANAGEMENT:
-  // content: Stores what the user is typing in real-time.
-  // isLoading: A flag to disable the button so users can't spam-click "Post".
   const [content, setContent] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-	// 3. ROUTER HOOK:
-  // This is special to Next.js. It allows us to reload data without refreshing the whole browser.
+  
+  // [NEW] User State
+  // We use a "Tri-state" here:
+  // null  = We don't know yet (Checking...)
+  // false = We know for sure they are NOT logged in.
+  // object = They are logged in (contains their email/id).
+  const [user, setUser] = useState<any>(null)
+
   const router = useRouter()
 
+  // [NEW] CHECK AUTH ON LOAD
+  // useEffect runs code exactly once when the component first appears (mounts).
+  useEffect(() => {
+    const getUser = async () => {
+      // Ask Supabase: "Who is currently logged in?"
+      const { data: { user } } = await supabase.auth.getUser()
+      
+      // If user is null, set to false. Otherwise set to the user object.
+      setUser(user ?? false)
+    }
+    getUser()
+  }, []) // The empty [] array means "Run this only once".
 
   const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault() // Stops the browser from reloading the page (standard HTML behavior).
-    if (!content.trim()) return // Guard clause: Don't submit empty spaces.
+    e.preventDefault() 
+    // [NEW] Security Guard: Don't submit if empty OR if user is not logged in.
+    if (!content.trim() || !user) return 
 
-    setIsLoading(true) // Lock the interface.
+    setIsLoading(true) 
 
-		// 4. SUPABASE INTERACTION:
-    // .from('posts'): Select table.
-    // .insert([...]): Add a row. keys must match DB column names exactly.
-    // data is ignored here, we only care if there is an 'error'.
+    // 4. SUPABASE INTERACTION:
     const { error } = await supabase
       .from('posts')
-      .insert([{ content: content }]) 
+      .insert([
+        { 
+          content: content,
+          // [NEW] Attach the User ID
+          // Now we explicitly stamp the post with the author's ID.
+          // This is critical for RLS (Permissions) to work correctly later.
+          user_id: user.id 
+        }
+      ]) 
 
     if (error) {
       console.error('Error posting:', error)
       alert('Error posting!')
     } else {
-      setContent('') // Clear the text box
-
-			// 5. THE MAGIC TRICK (router.refresh()):
-      // This tells Next.js: "Re-run the Server Components (page.tsx) to fetch new data, 
-      // but keep the current page state (scroll position, etc) intact."
-      // This is what makes the new post appear "instantly" without a white flash.
-      router.refresh() // Refresh the page to show the new post
+      setContent('') 
+      // 5. THE MAGIC TRICK (router.refresh()):
+      router.refresh() 
     }
     
-    setIsLoading(false) // Unlock the interface.
+    setIsLoading(false) 
   }
 
+  // [NEW] LOGOUT FUNCTION
+  const handleLogout = async () => {
+    await supabase.auth.signOut() // Tells Supabase to delete the session cookie.
+    setUser(false) // Immediately update UI to show "Logged Out" state.
+    router.refresh() // Refresh page to update any other data dependent on user.
+  }
+
+  // [NEW] CONDITIONAL RENDERING (The "Traffic Cop" Logic)
+  
+  // Scenario A: Still checking (Loading)
+  // Prevents the login button from flashing briefly before we know the user is logged in.
+  if (user === null) {
+    return <div className="p-4 text-gray-500 text-sm">Loading user...</div>
+  }
+
+  // Scenario B: User is NOT logged in
+  // Show a prompt to go to the login page instead of the form.
+  if (user === false) {
+    return (
+      <div className="mb-8 border p-6 rounded bg-gray-50 text-center shadow-sm">
+        <p className="mb-4 text-gray-600">You must be logged in to join the conversation.</p>
+        <button 
+          // We use router.push to navigate to the Login page we created.
+          onClick={() => router.push('/login')}
+          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors"
+        >
+          Log In / Sign Up
+        </button>
+      </div>
+    )
+  }
+
+  // Scenario C: User IS logged in
+  // Render the original Form, but with a Logout button added.
   return (
-		// Standard JSX (HTML in JS). 
-    // Note 'disabled={isLoading}' on both input and button.
-    // This is a UI best practice to prevent double-submissions.
-    <form onSubmit={handleSubmit} className="mb-8 border p-4 rounded bg-gray-50 shadow-sm">
-      <h3 className="font-bold mb-2">Create a new post</h3>
-      <textarea
-        className="w-full p-2 border rounded mb-2 text-black"
-        rows={3}
-        placeholder="What's on your mind?"
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        disabled={isLoading}
-      />
+    <div className="mb-8 border p-4 rounded bg-gray-50 shadow-sm relative">
+      
+       {/* [NEW] Small Logout button in top right corner */}
       <button 
-        type="submit" 
-        className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 disabled:opacity-50 transition-colors"
-        disabled={isLoading}
+        onClick={handleLogout}
+        className="absolute top-2 right-2 text-xs text-red-500 hover:text-red-700 hover:underline"
       >
-        {isLoading ? 'Posting...' : 'Post'}
+        Sign Out
       </button>
-    </form>
+
+      <form onSubmit={handleSubmit}>
+        {/* [NEW] Show who is posting */}
+        <h3 className="font-bold mb-2 text-sm text-gray-700">
+          Posting as: <span className="text-black">{user.email}</span>
+        </h3>
+        
+        <textarea
+          className="w-full p-2 border rounded mb-2 text-black"
+          rows={3}
+          placeholder="What's on your mind?"
+          value={content}
+          onChange={(e) => setContent(e.target.value)}
+          disabled={isLoading}
+        />
+        <button 
+          type="submit" 
+          className="bg-black text-white px-4 py-2 rounded hover:bg-gray-800 disabled:opacity-50"
+          disabled={isLoading}
+        >
+          {isLoading ? 'Posting...' : 'Post'}
+        </button>
+      </form>
+    </div>
   )
 }
