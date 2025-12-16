@@ -1,4 +1,4 @@
-// app/login/page.tsx
+// app/signup/page.tsx
 'use client'
 
 import { useState } from 'react'
@@ -6,17 +6,17 @@ import { supabase } from '@/lib/supabase'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
-export default function LoginPage() {
+export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
   const router = useRouter()
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault()
     setLoading(true)
 
-    const { error } = await supabase.auth.signInWithPassword({
+    const { error } = await supabase.auth.signUp({
       email,
       password,
     })
@@ -24,6 +24,7 @@ export default function LoginPage() {
     if (error) {
       alert(error.message)
     } else {
+      // Success! Redirect to home
       router.push('/')
       router.refresh()
     }
@@ -33,9 +34,9 @@ export default function LoginPage() {
   return (
     <div className="flex min-h-screen flex-col items-center justify-center p-4 bg-gray-50">
       <div className="w-full max-w-md border p-8 rounded bg-white shadow-md text-black">
-        <h1 className="text-2xl font-bold mb-6 text-center">Welcome Back</h1>
+        <h1 className="text-2xl font-bold mb-6 text-center">Create Account</h1>
         
-        <form onSubmit={handleLogin} className="flex flex-col gap-4">
+        <form onSubmit={handleSignup} className="flex flex-col gap-4">
           <label className="text-sm font-bold text-gray-600">Email</label>
           <input
             type="email"
@@ -61,14 +62,14 @@ export default function LoginPage() {
             disabled={loading}
             className="bg-black text-white p-3 rounded hover:opacity-80 disabled:opacity-50 font-bold mt-2"
           >
-            {loading ? 'Logging In...' : 'Log In'}
+            {loading ? 'Creating Account...' : 'Sign Up'}
           </button>
         </form>
 
         <p className="mt-4 text-center text-sm text-gray-600">
-          Don't have an account?{' '}
-          <Link href="/signup" className="text-blue-600 hover:underline">
-            Sign up here
+          Already have an account?{' '}
+          <Link href="/login" className="text-blue-600 hover:underline">
+            Log in here
           </Link>
         </p>
       </div>

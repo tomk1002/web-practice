@@ -84,19 +84,27 @@ export default function CreatePost() {
   // Scenario B: User is NOT logged in
   // Show a prompt to go to the login page instead of the form.
   if (user === false) {
-    return (
-      <div className="mb-8 border p-6 rounded bg-gray-50 text-center shadow-sm">
-        <p className="mb-4 text-gray-600">You must be logged in to join the conversation.</p>
-        <button 
-          // We use router.push to navigate to the Login page we created.
-          onClick={() => router.push('/login')}
-          className="bg-blue-600 text-white px-6 py-2 rounded hover:bg-blue-700 transition-colors"
-        >
-          Log In / Sign Up
-        </button>
+  return (
+    <div className="mb-8 border p-6 rounded bg-gray-50 text-center shadow-sm">
+      <p className="mb-4 text-gray-600">Join the conversation to post.</p>
+      <div className="flex justify-center gap-4">
+          <button 
+            onClick={() => router.push('/login')} // Links to Login Page
+            className="bg-black text-white px-6 py-2 rounded hover:opacity-80 transition-opacity"
+          >
+            Log In
+          </button>
+          
+          <button 
+            onClick={() => router.push('/signup')} // Links to Signup Page
+            className="bg-white text-black border border-black px-6 py-2 rounded hover:bg-gray-100 transition-colors"
+          >
+            Sign Up
+          </button>
       </div>
-    )
-  }
+    </div>
+  )
+}
 
   // Scenario C: User IS logged in
   // Render the original Form, but with a Logout button added.
